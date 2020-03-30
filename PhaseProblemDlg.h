@@ -8,7 +8,7 @@
 // Диалоговое окно CPhaseProblemDlg
 class CPhaseProblemDlg : public CDialogEx
 {
-// Создание
+	// Создание
 public:
 	CPhaseProblemDlg(CWnd* pParent = nullptr);	// стандартный конструктор
 
@@ -17,7 +17,7 @@ public:
 	enum { IDD = IDD_PHASEPROBLEM_DIALOG };
 #endif
 
-	protected:
+protected:
 	virtual void DoDataExchange(CDataExchange* pDX);	// поддержка DDX/DDV
 
 
@@ -35,14 +35,25 @@ public:
 	CDC* PicDc;
 	CRect Pic;
 
+	CWnd* PicWndSpec;				//области рисования
+	CDC* PicDcSpec;
+	CRect PicSpec;
+
 	CPen osi_pen;				//ручки
 	CPen setka_pen;
 	CPen signal_pen;
+	CPen spectr_pen;
 
 	float xp, yp,				//коэфициенты пересчета
 		xmin, xmax,				//максисимальное и минимальное значение х 
 		ymin, ymax,				//максисимальное и минимальное значение y
 		mn, mx;					//коэффициенты масштабирования
+
+	float xpspec, ypspec,				//коэфициенты пересчета
+		xminspec, xmaxspec,				//максисимальное и минимальное значение х 
+		yminspec, ymaxspec,				//максисимальное и минимальное значение y
+		mnspec, mxspec;					//коэффициенты масштабирования
+
 	float Pi = 3.141592653589;
 
 	afx_msg void OnBnClickedButtonExit();
@@ -66,4 +77,8 @@ public:
 	float e_disp5;
 	float e_center_pos4;
 	float e_center_pos5;
+
+	typedef struct cmplx { float real; float image; } Cmplx;
+	//========================================================
+	void CPhaseProblemDlg::fourea(struct cmplx* data, int n, int is);
 };

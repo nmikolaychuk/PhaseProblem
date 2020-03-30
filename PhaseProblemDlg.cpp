@@ -17,8 +17,64 @@
 #endif
 
 #define DOTS(x,y) (xp*((x)-xmin)),(yp*((y)-ymax))							// макрос перевода координат. график сигнала
+#define DOTSSPEC(x,y) (xpspec*((x)-xminspec)),(ypspec*((y)-ymaxspec))							// макрос перевода координат. график сигнала
 
 // Диалоговое окно CPhaseProblemDlg
+
+void CPhaseProblemDlg::fourea(struct cmplx* data, int n, int is)
+{
+	int i, j, istep;
+	int m, mmax;
+	float r, r1, theta, w_r, w_i, temp_r, temp_i;
+	float pi = 3.1415926f;
+
+	r = pi * is;
+	j = 0;
+	for (i = 0; i < n; i++)
+	{
+		if (i < j)
+		{
+			temp_r = data[j].real;
+			temp_i = data[j].image;
+			data[j].real = data[i].real;
+			data[j].image = data[i].image;
+			data[i].real = temp_r;
+			data[i].image = temp_i;
+		}
+		m = n >> 1;
+		while (j >= m) { j -= m; m = (m + 1) / 2; }
+		j += m;
+	}
+	mmax = 1;
+	while (mmax < n)
+	{
+		istep = mmax << 1;
+		r1 = r / (float)mmax;
+		for (m = 0; m < mmax; m++)
+		{
+			theta = r1 * m;
+			w_r = (float)cos((double)theta);
+			w_i = (float)sin((double)theta);
+			for (i = m; i < n; i += istep)
+			{
+				j = i + mmax;
+				temp_r = w_r * data[j].real - w_i * data[j].image;
+				temp_i = w_r * data[j].image + w_i * data[j].real;
+				data[j].real = data[i].real - temp_r;
+				data[j].image = data[i].image - temp_i;
+				data[i].real += temp_r;
+				data[i].image += temp_i;
+			}
+		}
+		mmax = istep;
+	}
+	if (is > 0)
+		for (i = 0; i < n; i++)
+		{
+			data[i].real /= (float)n;
+			data[i].image /= (float)n;
+		}
+}
 
 void CPhaseProblemDlg::Mashtab(float arr[], int dim, float* mmin, float* mmax)		//определяем функцию масштабирования
 {
@@ -64,7 +120,6 @@ void CPhaseProblemDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Text(pDX, IDC_EDIT_DISP_2, e_disp2);
 	DDX_Text(pDX, IDC_EDIT_DISP_3, e_disp3);
 	DDX_Text(pDX, IDC_EDIT_CENTER_POS_1, e_center_pos1);
-	//  DDX_Text(pDX, IDC_EDIT_CENTER_POS_2, e_center_pos1);
 	DDX_Text(pDX, IDC_EDIT_CENTER_POS_2, e_center_pos2);
 	DDX_Text(pDX, IDC_EDIT_CENTER_POS_3, e_center_pos3);
 	DDX_Text(pDX, IDC_EDIT_AMPL_4, e_ampl4);
@@ -99,6 +154,10 @@ BOOL CPhaseProblemDlg::OnInitDialog()
 	PicWnd = GetDlgItem(IDC_SIGNAL_PICTURE);			//связываем с ID окон
 	PicDc = PicWnd->GetDC();
 	PicWnd->GetClientRect(&Pic);
+	
+	PicWndSpec = GetDlgItem(IDC_SPECTR_PICTURE);			//связываем с ID окон
+	PicDcSpec = PicWndSpec->GetDC();
+	PicWndSpec->GetClientRect(&PicSpec);
 
 	// перья
 	setka_pen.CreatePen(		//для сетки
@@ -115,6 +174,11 @@ BOOL CPhaseProblemDlg::OnInitDialog()
 		PS_SOLID,				//сплошная линия
 		-1,						//толщина -1 пикселя
 		RGB(255, 0, 0));			//цвет синий
+
+	spectr_pen.CreatePen(			//график
+		PS_SOLID,				//сплошная линия
+		-1,						//толщина -1 пикселя
+		RGB(0, 0, 255));			//цвет синий		
 
 	UpdateData(false);
 	return TRUE;  // возврат значения TRUE, если фокус не передан элементу управления
@@ -159,14 +223,45 @@ HCURSOR CPhaseProblemDlg::OnQueryDragIcon()
 
 void CPhaseProblemDlg::RedrawAll() 
 {
+	float* signal = new float[Length];
+	memset(signal, 0, Length * sizeof(float));
+
+	for (int i = 0; i < Length; ++i)
+	{
+		signal[i] = function(i);
+	}
+
+	int is = -1;	// ППФ
+
+	cmplx* sp = new cmplx[Length];
+	for (int i = 0; i < Length; i++)
+	{
+		sp[i].real = signal[i];
+		sp[i].image = 0;
+	}
+
+	fourea(sp, Length, is);
+
+	float* mas_mod = new float[Length];
+	memset(mas_mod, 0, Length * sizeof(float));
+	for (int i = 0; i < Length; i++)
+	{
+		mas_mod[i] = sqrt((sp[i].real) * (sp[i].real) + (sp[i].image) * (sp[i].image));
+	}
+
+
+	Mashtab(signal, Length, &mn, &mx);
+	Mashtab(mas_mod, Length, &mnspec, &mxspec);
+
+
 	PicDc->FillSolidRect(&Pic, RGB(250, 250, 250));			//закрашиваю фон 
 	PicDc->SelectObject(&osi_pen);		//выбираем перо
 
 	//область построения
 	xmin = 0;			//минимальное значение х
 	xmax = Length;			//максимальное значение х
-	ymin = -0.5;//mn - 0.18 * mx;			//минимальное значение y
-	ymax = 5;//mx * 1.2;		//максимальное значение y
+	ymin = mn - 0.18 * mx;			//минимальное значение y
+	ymax = mx * 1.2;		//максимальное значение y
 
 	float window_signal_width = Pic.Width();
 	float window_signal_height = Pic.Height();
@@ -198,7 +293,7 @@ void CPhaseProblemDlg::RedrawAll()
 
 	//подпись точек на оси
 	CFont font;
-	font.CreateFontW(16, 0, 0, 0, FW_REGULAR, 0, 0, 0, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS || CLIP_LH_ANGLES, DEFAULT_QUALITY, DEFAULT_PITCH, _T("Times New Roman"));
+	font.CreateFontW(13, 0, 0, 0, FW_REGULAR, 0, 0, 0, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS || CLIP_LH_ANGLES, DEFAULT_QUALITY, DEFAULT_PITCH, _T("Times New Roman"));
 	PicDc->SelectObject(font);
 
 	//подпись осей
@@ -223,6 +318,76 @@ void CPhaseProblemDlg::RedrawAll()
 		PicDc->TextOutW(DOTS(j - 1, -0.1), str);
 	}
 
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	PicDcSpec->FillSolidRect(&PicSpec, RGB(250, 250, 250));			//закрашиваю фон 
+	PicDcSpec->SelectObject(&osi_pen);		//выбираем перо
+
+	//область построения
+	xminspec = 0;			//минимальное значение х
+	xmaxspec = Length;			//максимальное значение х
+	yminspec = mnspec - 0.18 * mxspec;			//минимальное значение y
+	ymaxspec = mxspec * 1.2;		//максимальное значение y
+
+	float window_spectr_width = PicSpec.Width();
+	float window_spectr_height = PicSpec.Height();
+	xpspec = ((window_spectr_width) / (xmaxspec - xminspec));			//Коэффициенты пересчёта координат по Х
+	ypspec = -(window_spectr_height / (ymaxspec - yminspec));			//Коэффициенты пересчёта координат по У
+
+	//создаём Ось Y
+	PicDcSpec->MoveTo(DOTSSPEC(0, ymaxspec));
+	PicDcSpec->LineTo(DOTSSPEC(0, yminspec));
+	//создаём Ось Х
+	PicDcSpec->MoveTo(DOTSSPEC(xminspec, 0));
+	PicDcSpec->LineTo(DOTSSPEC(xmaxspec, 0));
+
+	PicDcSpec->SelectObject(&setka_pen);
+
+	//отрисовка сетки по y
+	for (float x = 0; x <= xmaxspec; x += Length / 10)
+	{
+		PicDcSpec->MoveTo(DOTSSPEC(x, ymaxspec));
+		PicDcSpec->LineTo(DOTSSPEC(x, yminspec));
+	}
+	//отрисовка сетки по x
+	for (float y = 0; y <= ymaxspec; y += ymaxspec / 6)
+	{
+		PicDcSpec->MoveTo(DOTSSPEC(xminspec, y));
+		PicDcSpec->LineTo(DOTSSPEC(xmaxspec, y));
+	}
+
+
+	//подпись точек на оси
+	CFont font1;
+	font1.CreateFontW(13, 0, 0, 0, FW_REGULAR, 0, 0, 0, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS || CLIP_LH_ANGLES, DEFAULT_QUALITY, DEFAULT_PITCH, _T("Times New Roman"));
+	PicDcSpec->SelectObject(font1);
+
+	//подпись осей
+	PicDcSpec->TextOutW(DOTSSPEC(Length / 10, ymaxspec - 0.2), _T("X")); //Y
+	PicDcSpec->TextOutW(DOTSSPEC(xmaxspec - 2, 0 + 0.8), _T("t")); //X
+
+	//по Y с шагом 5
+	for (float i = 0; i <= ymaxspec; i += ymaxspec / 10)
+	{
+		CString str;
+		if (i != 0)
+		{
+			str.Format(_T("%.1f"), i);
+			PicDcSpec->TextOutW(DOTSSPEC(1, i + 0.25), str);
+		}
+	}
+	//по X с шагом 0.5
+	for (float j = 0; j <= xmaxspec; j += Length / 6)
+	{
+		CString str;
+		str.Format(_T("%.1f"), j);
+		PicDcSpec->TextOutW(DOTSSPEC(j - 1, -0.1), str);
+	}
+
+	delete signal;
+	delete sp;
+	delete mas_mod;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -270,5 +435,35 @@ void CPhaseProblemDlg::OnBnClickedButtonStart()
 	{
 		PicDc->LineTo(DOTS(i, signal[i]));
 	}
+
+	PicDcSpec->SelectObject(&spectr_pen);
+
+	int is = -1;	// ППФ
+
+	cmplx* sp = new cmplx[Length];
+	for (int i = 0; i < Length; i++)
+	{
+		sp[i].real = signal[i];
+		sp[i].image = 0;
+	}
+
+	fourea(sp, Length, is);
+
+	float* mas_mod = new float[Length];
+	memset(mas_mod, 0, Length * sizeof(float));
+	for (int i = 0; i < Length; i++)
+	{
+		mas_mod[i] = sqrt((sp[i].real) * (sp[i].real) + (sp[i].image) * (sp[i].image));
+	}
+
+	PicDcSpec->MoveTo(DOTSSPEC(0, mas_mod[0]));
+
+	for (int i = 0; i < Length; i++)
+	{
+		PicDcSpec->LineTo(DOTSSPEC(i, mas_mod[i]));
+	}
+
 	delete signal;
+	delete sp;
+	delete mas_mod;
 }

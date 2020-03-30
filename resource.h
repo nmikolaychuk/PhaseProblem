@@ -22,8 +22,9 @@
 #define IDC_EDIT_CENTER_POS_4           1015
 #define IDC_EDIT_AMPL_5                 1016
 #define IDC_EDIT_DISP_5                 1017
-#define IDC_EDIT15                      1018
 #define IDC_EDIT_CENTER_POS_5           1018
+#define IDC_SIGNAL_PICTURE2             1019
+#define IDC_SPECTR_PICTURE              1019
 
 // Next default values for new objects
 // 

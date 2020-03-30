@@ -99,4 +99,3 @@ BOOL CPhaseProblemApp::InitInstance()
 	//  приложения вместо запуска генератора сообщений приложения.
 	return FALSE;
 }
-
