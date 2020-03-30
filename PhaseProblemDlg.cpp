@@ -162,7 +162,7 @@ BOOL CPhaseProblemDlg::OnInitDialog()
 	// перья
 	setka_pen.CreatePen(		//для сетки
 		PS_DOT,					//пунктирная
-		1,						//толщина 1 пиксель
+		-1,						//толщина 1 пиксель
 		RGB(0, 0, 0));			//цвет  черный
 
 	osi_pen.CreatePen(			//координатные оси
@@ -280,14 +280,18 @@ void CPhaseProblemDlg::RedrawAll()
 	//отрисовка сетки по y
 	for (float x = 0; x <= xmax; x += Length / 14)
 	{
-		PicDc->MoveTo(DOTS(x, ymax));
-		PicDc->LineTo(DOTS(x, ymin));
+		if (x != 0) {
+			PicDc->MoveTo(DOTS(x, ymax));
+			PicDc->LineTo(DOTS(x, ymin));
+		}
 	}
 	//отрисовка сетки по x
-	for (float y = 0; y <= ymax; y += ymax / 6)
+	for (float y = 0; y < ymax; y += ymax / 6)
 	{
-		PicDc->MoveTo(DOTS(xmin, y));
-		PicDc->LineTo(DOTS(xmax, y));
+		if (y != 0) {
+			PicDc->MoveTo(DOTS(xmin, y));
+			PicDc->LineTo(DOTS(xmax, y));
+		}
 	}
 
 
@@ -297,8 +301,8 @@ void CPhaseProblemDlg::RedrawAll()
 	PicDc->SelectObject(font);
 
 	//подпись осей
-	PicDc->TextOutW(DOTS(Length / 10, ymax - 0.2), _T("X")); //Y
-	PicDc->TextOutW(DOTS(xmax - 2, 0 + 0.8), _T("t")); //X
+	PicDc->TextOutW(DOTS(0.01*Length, 0.99*ymax), _T("A")); //Y
+	PicDc->TextOutW(DOTS(xmax - Length/30, -ymin - 0.17 * ymax), _T("t")); //X
 
 	//по Y с шагом 5
 	for (float i = 0; i <= ymax; i += ymax / 6)
@@ -316,9 +320,10 @@ void CPhaseProblemDlg::RedrawAll()
 		CString str;
 		if (j != 0) {
 			str.Format(_T("%.0f"), j);
-			PicDc->TextOutW(DOTS(j - Length / 100, -0.1), str);
+			PicDc->TextOutW(DOTS(j - Length / 100, -ymin - 0.17*ymax), str);
 		}
 	}
+	
 
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -349,14 +354,18 @@ void CPhaseProblemDlg::RedrawAll()
 	//отрисовка сетки по y
 	for (float x = 0; x <= xmaxspec; x += Length / 14)
 	{
-		PicDcSpec->MoveTo(DOTSSPEC(x, ymaxspec));
-		PicDcSpec->LineTo(DOTSSPEC(x, yminspec));
+		if (x != 0) {
+			PicDcSpec->MoveTo(DOTSSPEC(x, ymaxspec));
+			PicDcSpec->LineTo(DOTSSPEC(x, yminspec));
+		}
 	}
 	//отрисовка сетки по x
-	for (float y = 0; y <= ymaxspec; y += ymaxspec / 6)
+	for (float y = 0; y < ymaxspec; y += ymaxspec / 6)
 	{
-		PicDcSpec->MoveTo(DOTSSPEC(xminspec, y));
-		PicDcSpec->LineTo(DOTSSPEC(xmaxspec, y));
+		if (y != 0) {
+			PicDcSpec->MoveTo(DOTSSPEC(xminspec, y));
+			PicDcSpec->LineTo(DOTSSPEC(xmaxspec, y));
+		}
 	}
 
 
@@ -366,8 +375,8 @@ void CPhaseProblemDlg::RedrawAll()
 	PicDcSpec->SelectObject(font1);
 
 	//подпись осей
-	PicDcSpec->TextOutW(DOTSSPEC(Length / 10, ymaxspec - 0.2), _T("X")); //Y
-	PicDcSpec->TextOutW(DOTSSPEC(xmaxspec - 2, 0 + 0.8), _T("t")); //X
+	PicDcSpec->TextOutW(DOTSSPEC(0.01 * Length, 0.99 * ymaxspec), _T("A")); //Y
+	PicDcSpec->TextOutW(DOTSSPEC(xmaxspec - Length / 30, -ymin - 0.3 * ymax), _T("f")); //X
 
 	//по Y с шагом 5
 	for (float i = 0; i <= ymaxspec; i += ymaxspec / 6)
@@ -386,7 +395,7 @@ void CPhaseProblemDlg::RedrawAll()
 		if (j != 0)
 		{
 			str.Format(_T("%.2f"), j / Length);
-			PicDcSpec->TextOutW(DOTSSPEC(j - Length/100, -0.1), str);
+			PicDcSpec->TextOutW(DOTSSPEC(j - Length/100, -yminspec - 0.17 * ymaxspec), str);
 		}
 	}
 
