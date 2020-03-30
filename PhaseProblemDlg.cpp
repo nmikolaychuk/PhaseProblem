@@ -258,7 +258,7 @@ void CPhaseProblemDlg::RedrawAll()
 	PicDc->SelectObject(&osi_pen);		//выбираем перо
 
 	//область построения
-	xmin = 0;			//минимальное значение х
+	xmin = -Length/14;			//минимальное значение х
 	xmax = Length;			//максимальное значение х
 	ymin = mn - 0.18 * mx;			//минимальное значение y
 	ymax = mx * 1.2;		//максимальное значение y
@@ -278,7 +278,7 @@ void CPhaseProblemDlg::RedrawAll()
 	PicDc->SelectObject(&setka_pen);
 
 	//отрисовка сетки по y
-	for (float x = 0; x <= xmax; x += Length / 10)
+	for (float x = 0; x <= xmax; x += Length / 14)
 	{
 		PicDc->MoveTo(DOTS(x, ymax));
 		PicDc->LineTo(DOTS(x, ymin));
@@ -293,7 +293,7 @@ void CPhaseProblemDlg::RedrawAll()
 
 	//подпись точек на оси
 	CFont font;
-	font.CreateFontW(13, 0, 0, 0, FW_REGULAR, 0, 0, 0, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS || CLIP_LH_ANGLES, DEFAULT_QUALITY, DEFAULT_PITCH, _T("Times New Roman"));
+	font.CreateFontW(14.5, 0, 0, 0, FW_REGULAR, 0, 0, 0, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS || CLIP_LH_ANGLES, DEFAULT_QUALITY, DEFAULT_PITCH, _T("Times New Roman"));
 	PicDc->SelectObject(font);
 
 	//подпись осей
@@ -301,21 +301,23 @@ void CPhaseProblemDlg::RedrawAll()
 	PicDc->TextOutW(DOTS(xmax - 2, 0 + 0.8), _T("t")); //X
 
 	//по Y с шагом 5
-	for (float i = 0; i <= ymax; i += ymax / 10)
+	for (float i = 0; i <= ymax; i += ymax / 6)
 	{
 		CString str;
 		if (i != 0)
 		{
-			str.Format(_T("%.1f"), i);
-			PicDc->TextOutW(DOTS(1, i + 0.25), str);
+			str.Format(_T("%.2f"), i);
+			PicDc->TextOutW(DOTS(xmin + Length / 40, i + 0.05 * ymax), str);
 		}
 	}
 	//по X с шагом 0.5
-	for (float j = 0; j <= xmax; j += Length / 6)
+	for (float j = 0; j <= xmax; j += Length / 14)
 	{
 		CString str;
-		str.Format(_T("%.1f"), j);
-		PicDc->TextOutW(DOTS(j - 1, -0.1), str);
+		if (j != 0) {
+			str.Format(_T("%.0f"), j);
+			PicDc->TextOutW(DOTS(j - Length / 100, -0.1), str);
+		}
 	}
 
 
@@ -325,7 +327,7 @@ void CPhaseProblemDlg::RedrawAll()
 	PicDcSpec->SelectObject(&osi_pen);		//выбираем перо
 
 	//область построения
-	xminspec = 0;			//минимальное значение х
+	xminspec = -Length/14;			//минимальное значение х
 	xmaxspec = Length;			//максимальное значение х
 	yminspec = mnspec - 0.18 * mxspec;			//минимальное значение y
 	ymaxspec = mxspec * 1.2;		//максимальное значение y
@@ -345,7 +347,7 @@ void CPhaseProblemDlg::RedrawAll()
 	PicDcSpec->SelectObject(&setka_pen);
 
 	//отрисовка сетки по y
-	for (float x = 0; x <= xmaxspec; x += Length / 10)
+	for (float x = 0; x <= xmaxspec; x += Length / 14)
 	{
 		PicDcSpec->MoveTo(DOTSSPEC(x, ymaxspec));
 		PicDcSpec->LineTo(DOTSSPEC(x, yminspec));
@@ -360,7 +362,7 @@ void CPhaseProblemDlg::RedrawAll()
 
 	//подпись точек на оси
 	CFont font1;
-	font1.CreateFontW(13, 0, 0, 0, FW_REGULAR, 0, 0, 0, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS || CLIP_LH_ANGLES, DEFAULT_QUALITY, DEFAULT_PITCH, _T("Times New Roman"));
+	font1.CreateFontW(14.5, 0, 0, 0, FW_REGULAR, 0, 0, 0, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS || CLIP_LH_ANGLES, DEFAULT_QUALITY, DEFAULT_PITCH, _T("Times New Roman"));
 	PicDcSpec->SelectObject(font1);
 
 	//подпись осей
@@ -368,21 +370,24 @@ void CPhaseProblemDlg::RedrawAll()
 	PicDcSpec->TextOutW(DOTSSPEC(xmaxspec - 2, 0 + 0.8), _T("t")); //X
 
 	//по Y с шагом 5
-	for (float i = 0; i <= ymaxspec; i += ymaxspec / 10)
+	for (float i = 0; i <= ymaxspec; i += ymaxspec / 6)
 	{
 		CString str;
 		if (i != 0)
 		{
-			str.Format(_T("%.1f"), i);
-			PicDcSpec->TextOutW(DOTSSPEC(1, i + 0.25), str);
+			str.Format(_T("%.2f"), i);
+			PicDcSpec->TextOutW(DOTSSPEC(xminspec + Length/40, i + 0.05 * ymaxspec), str);
 		}
 	}
 	//по X с шагом 0.5
-	for (float j = 0; j <= xmaxspec; j += Length / 6)
+	for (float j = 0; j <= xmaxspec; j += Length / 14)
 	{
 		CString str;
-		str.Format(_T("%.1f"), j);
-		PicDcSpec->TextOutW(DOTSSPEC(j - 1, -0.1), str);
+		if (j != 0)
+		{
+			str.Format(_T("%.2f"), j / Length);
+			PicDcSpec->TextOutW(DOTSSPEC(j - Length/100, -0.1), str);
+		}
 	}
 
 	delete signal;
