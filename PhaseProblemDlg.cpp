@@ -509,7 +509,7 @@ void CPhaseProblemDlg::OnBnClickedButtonDropRecovery()
 	UpdateData(TRUE);
 	CString bCheckString = NULL;
 	button_StartRecovery.GetWindowTextW(bCheckString);
-	if (!bStartRec && bCheckString != bDefaultString)
+	if (bStartRec && bCheckString != bDefaultString)
 	{
 		MessageBox(L"Для сброса необходимо остановить процесс восстановления!", L"Ошибка", MB_OK | MB_ICONERROR);
 	}

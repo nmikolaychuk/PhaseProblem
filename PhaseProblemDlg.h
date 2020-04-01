@@ -82,7 +82,7 @@ public:
 	BOOL bStartRec = false;
 
 	CString bStartString = L"Продолжить восстановление";
-	CString bPauseString = L"Остановить восстановления";
+	CString bPauseString = L"Остановить восстановление";
 	CString bDefaultString = L"Запуск восстановления";
 
 	typedef struct cmplx { float real; float image; } Cmplx;
