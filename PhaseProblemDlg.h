@@ -58,6 +58,7 @@ public:
 
 	afx_msg void OnBnClickedButtonExit();
 	afx_msg void OnBnClickedButtonStart();
+	afx_msg void OnBnClickedButtonStartRecovery();
 	void RedrawAll();
 	void CPhaseProblemDlg::Mashtab(float arr[], int dim, float* mmin, float* mmax);
 	float CPhaseProblemDlg::function(int t);
@@ -77,8 +78,15 @@ public:
 	float e_disp5;
 	float e_center_pos4;
 	float e_center_pos5;
+	CButton button_StartRecovery;
+	BOOL bStartRec = false;
+
+	CString bStartString = L"Продолжить восстановление";
+	CString bPauseString = L"Остановить восстановления";
+	CString bDefaultString = L"Запуск восстановления";
 
 	typedef struct cmplx { float real; float image; } Cmplx;
 	//========================================================
 	void CPhaseProblemDlg::fourea(struct cmplx* data, int n, int is);
+	afx_msg void OnBnClickedButtonDropRecovery();
 };

@@ -128,6 +128,7 @@ void CPhaseProblemDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Text(pDX, IDC_EDIT_DISP_5, e_disp5);
 	DDX_Text(pDX, IDC_EDIT_CENTER_POS_4, e_center_pos4);
 	DDX_Text(pDX, IDC_EDIT_CENTER_POS_5, e_center_pos5);
+	DDX_Control(pDX, IDC_BUTTON_START_RECOVERY, button_StartRecovery);
 }
 
 BEGIN_MESSAGE_MAP(CPhaseProblemDlg, CDialogEx)
@@ -135,6 +136,8 @@ BEGIN_MESSAGE_MAP(CPhaseProblemDlg, CDialogEx)
 	ON_WM_QUERYDRAGICON()
 	ON_BN_CLICKED(IDC_BUTTON_EXIT, &CPhaseProblemDlg::OnBnClickedButtonExit)
 	ON_BN_CLICKED(IDC_BUTTON_START, &CPhaseProblemDlg::OnBnClickedButtonStart)
+	ON_BN_CLICKED(IDC_BUTTON_START_RECOVERY, &CPhaseProblemDlg::OnBnClickedButtonStartRecovery)
+	ON_BN_CLICKED(IDC_BUTTON_DROP_RECOVERY, &CPhaseProblemDlg::OnBnClickedButtonDropRecovery)
 END_MESSAGE_MAP()
 
 
@@ -480,4 +483,38 @@ void CPhaseProblemDlg::OnBnClickedButtonStart()
 	delete signal;
 	delete sp;
 	delete mas_mod;
+}
+
+
+void CPhaseProblemDlg::OnBnClickedButtonStartRecovery()
+{
+	// TODO: добавьте свой код обработчика уведомлений
+	UpdateData(TRUE);
+	if (!bStartRec)
+	{
+		button_StartRecovery.SetWindowTextW(bPauseString);
+		bStartRec = true;
+	}
+	else
+	{
+		button_StartRecovery.SetWindowTextW(bStartString);
+		bStartRec = false;
+	}
+}
+
+
+void CPhaseProblemDlg::OnBnClickedButtonDropRecovery()
+{
+	// TODO: добавьте свой код обработчика уведомлений
+	UpdateData(TRUE);
+	CString bCheckString = NULL;
+	button_StartRecovery.GetWindowTextW(bCheckString);
+	if (!bStartRec && bCheckString != bDefaultString)
+	{
+		MessageBox(L"Для сброса необходимо остановить процесс восстановления!", L"Ошибка", MB_OK | MB_ICONERROR);
+	}
+	else
+	{
+		button_StartRecovery.SetWindowTextW(bDefaultString);
+	}
 }

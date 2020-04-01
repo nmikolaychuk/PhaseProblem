@@ -25,6 +25,9 @@
 #define IDC_EDIT_CENTER_POS_5           1018
 #define IDC_SIGNAL_PICTURE2             1019
 #define IDC_SPECTR_PICTURE              1019
+#define IDC_BUTTON_START_RECOVERY       1020
+#define IDC_BUTTON                      1021
+#define IDC_BUTTON_DROP_RECOVERY        1021
 
 // Next default values for new objects
 // 
@@ -32,7 +35,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        130
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1019
+#define _APS_NEXT_CONTROL_VALUE         1022
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
