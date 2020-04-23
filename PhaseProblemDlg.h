@@ -43,6 +43,7 @@ public:
 	CPen setka_pen;
 	CPen signal_pen;
 	CPen spectr_pen;
+	CPen vosstanovl_pen;
 
 	float xp, yp,				//коэфициенты пересчета
 		xmin, xmax,				//максисимальное и минимальное значение х 
@@ -62,6 +63,12 @@ public:
 	void RedrawAll();
 	void CPhaseProblemDlg::Mashtab(float arr[], int dim, float* mmin, float* mmax);
 	float CPhaseProblemDlg::function(int t);
+	float CPhaseProblemDlg::Psi();
+	void CPhaseProblemDlg::Fienup();
+
+	float RestoreSignal[1024];
+	float Spectr[1024];
+
 	float Length;
 	float e_ampl1;
 	float e_ampl2;

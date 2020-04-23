@@ -183,6 +183,11 @@ BOOL CPhaseProblemDlg::OnInitDialog()
 		-1,						//толщина -1 пикселя
 		RGB(0, 0, 255));			//цвет синий		
 
+	vosstanovl_pen.CreatePen(			//график
+		PS_SOLID,				//сплошная линия
+		-1,						//толщина -1 пикселя
+		RGB(0, 0, 50));			//цвет синий	
+
 	UpdateData(false);
 	return TRUE;  // возврат значения TRUE, если фокус не передан элементу управления
 }
@@ -424,6 +429,82 @@ float CPhaseProblemDlg::function(int t)
 	return result;
 }
 
+float CPhaseProblemDlg::Psi()		//рандомизация для шума
+{
+	float r = 0;
+	float a = 0.;
+	float b = 2 * Pi;
+
+	for (int i = 1; i <= 12; i++)
+	{
+		r += (float)rand() / (float)RAND_MAX * (b - a) + a;	// [0;2PI]
+	}
+	return r / 12;
+}
+
+void CPhaseProblemDlg::Fienup()
+{
+	cmplx* InitialMassiv = new cmplx[Length];
+
+	memset(RestoreSignal, 0, Length * sizeof(float));
+
+	PicDc->SelectObject(&vosstanovl_pen);
+	int j = 0;
+	while (j < 1000)
+	{
+		j++;
+		if (j == 1)
+		{
+			float* phase = new float[Length];
+			for (int i = 0; i < Length; i++)
+			{
+				phase[i] = Psi();
+			}
+
+			cmplx* InitialMassiv = new cmplx[Length];
+			for (int i = 0; i < Length; i++)
+			{
+				InitialMassiv[i].real = Spectr[i] * cos(2 * Pi * phase[i]);
+				InitialMassiv[i].image = Spectr[i] * sin(2 * Pi * phase[i]);
+			}
+			delete phase;
+		}
+
+		else
+		{
+			fourea(InitialMassiv, Length, 1);
+
+			for (int i = 0; i < Length; i++)
+			{
+				if (InitialMassiv[i].real < 0) {
+					InitialMassiv[i].real = 0;
+				}
+				RestoreSignal[i] = InitialMassiv[i].real;
+				InitialMassiv[i].image = 0;
+			}
+			Sleep(1);
+
+			fourea(InitialMassiv, Length, -1);
+
+			float* phase = new float[Length];
+			for (int i = 0; i < Length; i++)
+			{
+				phase[i] = atan2(InitialMassiv[i].image, InitialMassiv[i].real);
+				InitialMassiv[i].real = Spectr[i] * cos(phase[i]);
+				InitialMassiv[i].image = Spectr[i] * sin(phase[i]);
+			}
+			delete phase;
+		}
+
+		PicDc->MoveTo(DOTS(0, RestoreSignal[0]));
+		for (int i = 0; i < Length; i++)
+		{
+			PicDc->LineTo(DOTS(i, RestoreSignal[i]));
+		}
+	}
+	delete InitialMassiv;
+}
+
 void CPhaseProblemDlg::OnBnClickedButtonExit()
 {
 	// TODO: добавьте свой код обработчика уведомлений
@@ -471,6 +552,7 @@ void CPhaseProblemDlg::OnBnClickedButtonStart()
 	for (int i = 0; i < Length; i++)
 	{
 		mas_mod[i] = sqrt((sp[i].real) * (sp[i].real) + (sp[i].image) * (sp[i].image));
+		Spectr[i] = mas_mod[i];
 	}
 
 	PicDcSpec->MoveTo(DOTSSPEC(0, mas_mod[0]));
@@ -479,6 +561,8 @@ void CPhaseProblemDlg::OnBnClickedButtonStart()
 	{
 		PicDcSpec->LineTo(DOTSSPEC(i, mas_mod[i]));
 	}
+
+	Fienup();
 
 	delete signal;
 	delete sp;
