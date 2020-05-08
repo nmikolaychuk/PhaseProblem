@@ -65,11 +65,14 @@ public:
 	float CPhaseProblemDlg::function(int t);
 	float CPhaseProblemDlg::Psi();
 	void CPhaseProblemDlg::Fienup();
+	void CPhaseProblemDlg::Reflection();
+	void CPhaseProblemDlg::Shift();
 
 	float RestoreSignal[1024];
+	float Signal[1024];
 	float Spectr[1024];
 
-	float Length;
+	int Length;
 	float e_ampl1;
 	float e_ampl2;
 	float e_ampl3;
@@ -87,6 +90,11 @@ public:
 	float e_center_pos5;
 	CButton button_StartRecovery;
 	BOOL bStartRec = false;
+
+	CString st_error;
+	CButton check_reflect;
+	CButton check_shift;
+	float accurat;
 
 	CString bStartString = L"Продолжить восстановление";
 	CString bPauseString = L"Остановить восстановление";

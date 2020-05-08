@@ -105,6 +105,8 @@ CPhaseProblemDlg::CPhaseProblemDlg(CWnd* pParent /*=nullptr*/)
 	, e_disp5(1.5)
 	, e_center_pos4(800.0)
 	, e_center_pos5(910.0)
+	, st_error(_T(""))
+	, accurat(1.e-5)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -129,6 +131,10 @@ void CPhaseProblemDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Text(pDX, IDC_EDIT_CENTER_POS_4, e_center_pos4);
 	DDX_Text(pDX, IDC_EDIT_CENTER_POS_5, e_center_pos5);
 	DDX_Control(pDX, IDC_BUTTON_START_RECOVERY, button_StartRecovery);
+	DDX_Text(pDX, IDC_STATIC_ERROR, st_error);
+	DDX_Text(pDX, IDC_EDIT_ACCURAT, accurat);
+	DDX_Control(pDX, IDC_CHECK_REFLECT, check_reflect);
+	DDX_Control(pDX, IDC_CHECK_SHIFT, check_shift);
 }
 
 BEGIN_MESSAGE_MAP(CPhaseProblemDlg, CDialogEx)
@@ -157,7 +163,7 @@ BOOL CPhaseProblemDlg::OnInitDialog()
 	PicWnd = GetDlgItem(IDC_SIGNAL_PICTURE);			//связываем с ID окон
 	PicDc = PicWnd->GetDC();
 	PicWnd->GetClientRect(&Pic);
-	
+
 	PicWndSpec = GetDlgItem(IDC_SPECTR_PICTURE);			//связываем с ID окон
 	PicDcSpec = PicWndSpec->GetDC();
 	PicWndSpec->GetClientRect(&PicSpec);
@@ -229,7 +235,7 @@ HCURSOR CPhaseProblemDlg::OnQueryDragIcon()
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
-void CPhaseProblemDlg::RedrawAll() 
+void CPhaseProblemDlg::RedrawAll()
 {
 	float* signal = new float[Length];
 	memset(signal, 0, Length * sizeof(float));
@@ -266,7 +272,7 @@ void CPhaseProblemDlg::RedrawAll()
 	PicDc->SelectObject(&osi_pen);		//выбираем перо
 
 	//область построения
-	xmin = -Length/14;			//минимальное значение х
+	xmin = -Length / 14;			//минимальное значение х
 	xmax = Length;			//максимальное значение х
 	ymin = mn - 0.18 * mx;			//минимальное значение y
 	ymax = mx * 1.2;		//максимальное значение y
@@ -309,8 +315,8 @@ void CPhaseProblemDlg::RedrawAll()
 	PicDc->SelectObject(font);
 
 	//подпись осей
-	PicDc->TextOutW(DOTS(0.01*Length, 0.99*ymax), _T("A")); //Y
-	PicDc->TextOutW(DOTS(xmax - Length/30, -ymin - 0.17 * ymax), _T("t")); //X
+	PicDc->TextOutW(DOTS(0.01 * Length, 0.99 * ymax), _T("A")); //Y
+	PicDc->TextOutW(DOTS(xmax - Length / 30, -ymin - 0.17 * ymax), _T("t")); //X
 
 	//по Y с шагом 5
 	for (float i = 0; i <= ymax; i += ymax / 6)
@@ -328,10 +334,10 @@ void CPhaseProblemDlg::RedrawAll()
 		CString str;
 		if (j != 0) {
 			str.Format(_T("%.0f"), j);
-			PicDc->TextOutW(DOTS(j - Length / 100, -ymin - 0.17*ymax), str);
+			PicDc->TextOutW(DOTS(j - Length / 100, -ymin - 0.17 * ymax), str);
 		}
 	}
-	
+
 
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -340,7 +346,7 @@ void CPhaseProblemDlg::RedrawAll()
 	PicDcSpec->SelectObject(&osi_pen);		//выбираем перо
 
 	//область построения
-	xminspec = -Length/14;			//минимальное значение х
+	xminspec = -Length / 14;			//минимальное значение х
 	xmaxspec = Length;			//максимальное значение х
 	yminspec = mnspec - 0.18 * mxspec;			//минимальное значение y
 	ymaxspec = mxspec * 1.2;		//максимальное значение y
@@ -393,7 +399,7 @@ void CPhaseProblemDlg::RedrawAll()
 		if (i != 0)
 		{
 			str.Format(_T("%.2f"), i);
-			PicDcSpec->TextOutW(DOTSSPEC(xminspec + Length/40, i + 0.05 * ymaxspec), str);
+			PicDcSpec->TextOutW(DOTSSPEC(xminspec + Length / 40, i + 0.05 * ymaxspec), str);
 		}
 	}
 	//по X с шагом 0.5
@@ -403,7 +409,7 @@ void CPhaseProblemDlg::RedrawAll()
 		if (j != 0)
 		{
 			str.Format(_T("%.2f"), j / Length);
-			PicDcSpec->TextOutW(DOTSSPEC(j - Length/100, -yminspec - 0.17 * ymaxspec), str);
+			PicDcSpec->TextOutW(DOTSSPEC(j - Length / 100, -yminspec - 0.17 * ymaxspec), str);
 		}
 	}
 
@@ -442,15 +448,158 @@ float CPhaseProblemDlg::Psi()		//рандомизация для шума
 	return r / 12;
 }
 
+void CPhaseProblemDlg::Reflection()
+{
+	float* Buffer = new float[Length];
+	for (int i = 0; i < Length; i++)
+	{
+		Buffer[i] = RestoreSignal[i];
+	}
+	for (int i = 0; i < Length / 2; i++)
+	{
+		RestoreSignal[i] = Buffer[Length / 2 - i - 1];
+	}
+	for (int i = 0; i < Length / 2; i++)
+	{
+		RestoreSignal[Length / 2 + i] = Buffer[Length - i - 1];
+	}
+	delete[] Buffer;
+}
+
+void CPhaseProblemDlg::Shift()
+{
+	float* Buffer = new float[Length];
+	float* RestoreHelp = new float[Length];
+	float* NewMassiv = new float[Length];
+	float* NewInvMassiv = new float[Length];
+
+	for (int i = 0; i < Length; i++)
+	{
+		RestoreHelp[i] = RestoreSignal[i];
+		Buffer[i] = RestoreSignal[i];
+		NewMassiv[i] = 0;
+		NewInvMassiv[i] = 0;
+	}
+
+	for (int i = 0; i < Length; i++)
+	{
+		for (int j = 0; j < Length; j++)
+		{
+			if ((i + j) < Length)
+			{
+				RestoreHelp[j] = Buffer[i + j];
+			}
+			else
+			{
+				RestoreHelp[j] = Buffer[i + j - Length];
+			}
+		}
+
+		for (int k = 0; k < Length; k++)
+		{
+			NewMassiv[i] += sqrt((Signal[k] - RestoreHelp[k]) * (Signal[k] - RestoreHelp[k]));
+		}
+	}
+	Reflection();
+
+	for (int i = 0; i < Length; i++)
+	{
+		RestoreHelp[i] = RestoreSignal[i];
+		Buffer[i] = RestoreSignal[i];
+	}
+
+	for (int i = 0; i < Length; i++)
+	{
+		for (int j = 0; j < Length; j++)
+		{
+			if ((i + j) < Length)
+			{
+				RestoreHelp[j] = Buffer[i + j];
+			}
+			else
+			{
+				RestoreHelp[j] = Buffer[i + j - Length];
+			}
+		}
+
+		for (int k = 0; k < Length; k++)
+		{
+			NewInvMassiv[i] += sqrt((Signal[k] - RestoreHelp[k]) * (Signal[k] - RestoreHelp[k]));
+		}
+	}
+	Reflection();
+
+	float mininv = NewInvMassiv[0];
+	float min = NewMassiv[0];
+	int minimum = 0;
+	int minimuminv = 0;
+
+	for (int i = 1; i < Length; i++)
+	{
+		if (NewMassiv[i] < min)
+		{
+			min = NewMassiv[i];
+			minimum = i;
+		}
+
+		if (NewInvMassiv[i] < mininv)
+		{
+			mininv = NewInvMassiv[i];
+			minimuminv = i;
+		}
+	}
+
+	if (mininv < min)
+	{
+		Reflection();
+
+		for (int i = 0; i < Length; i++)
+		{
+			Buffer[i] = RestoreSignal[i];
+		}
+
+		for (int i = 0; i < Length; i++)
+		{
+			if ((i + minimuminv) < Length)
+			{
+				RestoreSignal[i] = Buffer[i + minimuminv];
+			}
+			else
+			{
+				RestoreSignal[i] = Buffer[i + minimuminv - Length];
+			}
+		}
+	}
+	else
+	{
+		for (int i = 0; i < Length; i++)
+		{
+			Buffer[i] = RestoreSignal[i];
+		}
+
+		for (int i = 0; i < Length; i++)
+		{
+			if ((i + minimum) < Length)
+			{
+				RestoreSignal[i] = Buffer[i + minimum];
+			}
+			else
+			{
+				RestoreSignal[i] = Buffer[i + minimum - Length];
+			}
+		}
+	}
+}
+
 void CPhaseProblemDlg::Fienup()
 {
 	cmplx* InitialMassiv = new cmplx[Length];
+	float* RSignal = new float[Length];
 
-	memset(RestoreSignal, 0, Length * sizeof(float));
+	float tau = accurat;
 
-	PicDc->SelectObject(&vosstanovl_pen);
 	int j = 0;
-	while (j < 1000)
+	while (1)
 	{
 		j++;
 		if (j == 1)
@@ -461,48 +610,87 @@ void CPhaseProblemDlg::Fienup()
 				phase[i] = Psi();
 			}
 
-			cmplx* InitialMassiv = new cmplx[Length];
 			for (int i = 0; i < Length; i++)
 			{
 				InitialMassiv[i].real = Spectr[i] * cos(2 * Pi * phase[i]);
 				InitialMassiv[i].image = Spectr[i] * sin(2 * Pi * phase[i]);
+				RSignal[i] = InitialMassiv[i].real;
 			}
-			delete phase;
+			delete[] phase;
 		}
 
-		else
+		fourea(InitialMassiv, Length, 1);
+
+		for (int i = 0; i < Length; i++)
 		{
-			fourea(InitialMassiv, Length, 1);
-
-			for (int i = 0; i < Length; i++)
-			{
-				if (InitialMassiv[i].real < 0) {
-					InitialMassiv[i].real = 0;
-				}
-				RestoreSignal[i] = InitialMassiv[i].real;
-				InitialMassiv[i].image = 0;
+			if (InitialMassiv[i].real < 0) {
+				InitialMassiv[i].real = 0;
 			}
-			Sleep(1);
+			RestoreSignal[i] = InitialMassiv[i].real;
+			InitialMassiv[i].image = 0;
+		}
+		//Sleep(1);
 
-			fourea(InitialMassiv, Length, -1);
+		fourea(InitialMassiv, Length, -1);
 
-			float* phase = new float[Length];
-			for (int i = 0; i < Length; i++)
-			{
-				phase[i] = atan2(InitialMassiv[i].image, InitialMassiv[i].real);
-				InitialMassiv[i].real = Spectr[i] * cos(phase[i]);
-				InitialMassiv[i].image = Spectr[i] * sin(phase[i]);
-			}
-			delete phase;
+		float* phase = new float[Length];
+		for (int i = 0; i < Length; i++)
+		{
+			phase[i] = atan2(InitialMassiv[i].image, InitialMassiv[i].real);
+			InitialMassiv[i].real = Spectr[i] * cos(phase[i]);
+			InitialMassiv[i].image = Spectr[i] * sin(phase[i]);
+		}
+		delete[] phase;
+
+		if (check_reflect.GetCheck() == BST_CHECKED)
+		{
+			Reflection();
 		}
 
+		if (check_shift.GetCheck() == BST_CHECKED)
+		{
+			Shift();
+		}
+
+		RedrawAll();
+
+		PicDc->SelectObject(&signal_pen);
+		PicDc->MoveTo(DOTS(0, Signal[0]));
+
+		for (int i = 0; i < Length; i++)
+		{
+			PicDc->LineTo(DOTS(i, Signal[i]));
+		}
+
+		PicDc->SelectObject(&vosstanovl_pen);
 		PicDc->MoveTo(DOTS(0, RestoreSignal[0]));
 		for (int i = 0; i < Length; i++)
 		{
 			PicDc->LineTo(DOTS(i, RestoreSignal[i]));
 		}
+
+		PicDcSpec->SelectObject(&spectr_pen);
+		PicDcSpec->MoveTo(DOTSSPEC(0, Spectr[0]));
+		for (int i = 0; i < Length; i++)
+		{
+			PicDcSpec->LineTo(DOTSSPEC(i, Spectr[i]));
+		}
+
+		float sqerror = 0;
+		for (int i = 0; i < Length; i++)
+		{
+			sqerror += sqrt((RSignal[i] - RestoreSignal[i]) * (RSignal[i] - RestoreSignal[i]));
+			RSignal[i] = RestoreSignal[i];
+		}
+
+		if ((sqerror / Length) <= tau) break;
+
+		CString err = NULL;
+		err.Format(L"%.13f", sqerror / Length);
+		st_error = err;
+		UpdateData(FALSE);
 	}
-	delete InitialMassiv;
+	delete[] InitialMassiv;
 }
 
 void CPhaseProblemDlg::OnBnClickedButtonExit()
@@ -524,6 +712,7 @@ void CPhaseProblemDlg::OnBnClickedButtonStart()
 	for (int i = 0; i < Length; ++i)
 	{
 		signal[i] = function(i);
+		Signal[i] = signal[i];
 	}
 
 	PicDc->SelectObject(&signal_pen);
@@ -562,11 +751,9 @@ void CPhaseProblemDlg::OnBnClickedButtonStart()
 		PicDcSpec->LineTo(DOTSSPEC(i, mas_mod[i]));
 	}
 
-	Fienup();
-
-	delete signal;
-	delete sp;
-	delete mas_mod;
+	delete[] signal;
+	delete[] sp;
+	delete[] mas_mod;
 }
 
 
@@ -574,31 +761,11 @@ void CPhaseProblemDlg::OnBnClickedButtonStartRecovery()
 {
 	// TODO: добавьте свой код обработчика уведомлений
 	UpdateData(TRUE);
-	if (!bStartRec)
-	{
-		button_StartRecovery.SetWindowTextW(bPauseString);
-		bStartRec = true;
-	}
-	else
-	{
-		button_StartRecovery.SetWindowTextW(bStartString);
-		bStartRec = false;
-	}
+	Fienup();
 }
 
 
 void CPhaseProblemDlg::OnBnClickedButtonDropRecovery()
 {
 	// TODO: добавьте свой код обработчика уведомлений
-	UpdateData(TRUE);
-	CString bCheckString = NULL;
-	button_StartRecovery.GetWindowTextW(bCheckString);
-	if (bStartRec && bCheckString != bDefaultString)
-	{
-		MessageBox(L"Для сброса необходимо остановить процесс восстановления!", L"Ошибка", MB_OK | MB_ICONERROR);
-	}
-	else
-	{
-		button_StartRecovery.SetWindowTextW(bDefaultString);
-	}
 }
