@@ -31,6 +31,17 @@ protected:
 	afx_msg HCURSOR OnQueryDragIcon();
 	DECLARE_MESSAGE_MAP()
 public:
+	double function(int t);
+	double Psi();
+	void Fienup();
+	void Reflection();
+	void Shift();
+	void Graph1(double*, CDC*, CRect, CPen*, double);
+	void Graph2(double*, CPen*, double*, CPen*, CDC*, CRect, double);
+
+	DWORD dwThread;
+	HANDLE hThread;
+
 	CWnd* PicWnd;				//области рисования
 	CDC* PicDc;
 	CRect Pic;
@@ -45,60 +56,50 @@ public:
 	CPen spectr_pen;
 	CPen vosstanovl_pen;
 
-	float xp, yp,				//коэфициенты пересчета
-		xmin, xmax,				//максисимальное и минимальное значение х 
-		ymin, ymax,				//максисимальное и минимальное значение y
-		mn, mx;					//коэффициенты масштабирования
-
-	float xpspec, ypspec,				//коэфициенты пересчета
-		xminspec, xmaxspec,				//максисимальное и минимальное значение х 
-		yminspec, ymaxspec,				//максисимальное и минимальное значение y
-		mnspec, mxspec;					//коэффициенты масштабирования
-
-	float Pi = 3.141592653589;
+	double Pi = 3.141592653589;
 
 	afx_msg void OnBnClickedButtonExit();
 	afx_msg void OnBnClickedButtonStart();
 	afx_msg void OnBnClickedButtonStartRecovery();
-	void RedrawAll();
-	void CPhaseProblemDlg::Mashtab(float arr[], int dim, float* mmin, float* mmax);
-	float CPhaseProblemDlg::function(int t);
-	float CPhaseProblemDlg::Psi();
-	void CPhaseProblemDlg::Fienup();
-	void CPhaseProblemDlg::Reflection();
-	void CPhaseProblemDlg::Shift();
-
-	float RestoreSignal[1024];
-	float Signal[1024];
-	float Spectr[1024];
 
 	int Length;
-	float e_ampl1;
-	float e_ampl2;
-	float e_ampl3;
-	float e_disp1;
-	float e_disp2;
-	float e_disp3;
-	float e_center_pos1;
-	float e_center_pos2;
-	float e_center_pos3;
-	float e_ampl4;
-	float e_ampl5;
-	float e_disp4;
-	float e_disp5;
-	float e_center_pos4;
-	float e_center_pos5;
-	CButton button_StartRecovery;
-	BOOL bStartRec = false;
+	double e_ampl1;
+	double e_ampl2;
+	double e_ampl3;
+	double e_disp1;
+	double e_disp2;
+	double e_disp3;
+	double e_center_pos1;
+	double e_center_pos2;
+	double e_center_pos3;
+	double e_ampl4;
+	double e_ampl5;
+	double e_disp4;
+	double e_disp5;
+	double e_center_pos4;
+	double e_center_pos5;
 
-	CString st_error;
+	double* Signal;
+	double* Spectr;
+	double* RestoreSignal;
+
+	bool SignalFlag, SpectrFlag, VosstFlag;
+	double Min, Max, Min1, Max1, Min2, Max2;
+	double xx0, xxmax, yy0, yymax, xxi, yyi;
+	
+	double osh;
+	char err[100];
+	char znach[1000];
+
 	CButton check_reflect;
 	CButton check_shift;
-	float accurat;
+	CStatic static_err;
+	double accurat;
 
-	CString bStartString = L"Продолжить восстановление";
-	CString bPauseString = L"Остановить восстановление";
-	CString bDefaultString = L"Запуск восстановления";
+	BOOL bRunTh = false;
+	CButton button_StartRecovery;
+	CString bStartString = L"Восстановить";
+	CString bPauseString = L"Остановить";
 
 	typedef struct cmplx { float real; float image; } Cmplx;
 	//========================================================

@@ -76,17 +76,6 @@ void CPhaseProblemDlg::fourea(struct cmplx* data, int n, int is)
 		}
 }
 
-void CPhaseProblemDlg::Mashtab(float arr[], int dim, float* mmin, float* mmax)		//определяем функцию масштабирования
-{
-	*mmin = *mmax = arr[0];
-
-	for (int i = 0; i < dim; i++)
-	{
-		if (*mmin > arr[i]) *mmin = arr[i];
-		if (*mmax < arr[i]) *mmax = arr[i];
-	}
-}
-
 CPhaseProblemDlg::CPhaseProblemDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_PHASEPROBLEM_DIALOG, pParent)
 	, Length(1024)
@@ -105,8 +94,11 @@ CPhaseProblemDlg::CPhaseProblemDlg(CWnd* pParent /*=nullptr*/)
 	, e_disp5(1.5)
 	, e_center_pos4(800.0)
 	, e_center_pos5(910.0)
-	, st_error(_T(""))
-	, accurat(1.e-5)
+	, accurat(1.e-3)
+	, SignalFlag(false)
+	, SpectrFlag(false)
+	, VosstFlag(false)
+	, osh(0)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -131,10 +123,10 @@ void CPhaseProblemDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Text(pDX, IDC_EDIT_CENTER_POS_4, e_center_pos4);
 	DDX_Text(pDX, IDC_EDIT_CENTER_POS_5, e_center_pos5);
 	DDX_Control(pDX, IDC_BUTTON_START_RECOVERY, button_StartRecovery);
-	DDX_Text(pDX, IDC_STATIC_ERROR, st_error);
 	DDX_Text(pDX, IDC_EDIT_ACCURAT, accurat);
 	DDX_Control(pDX, IDC_CHECK_REFLECT, check_reflect);
 	DDX_Control(pDX, IDC_CHECK_SHIFT, check_shift);
+	DDX_Control(pDX, IDC_STATIC_ERR, static_err);
 }
 
 BEGIN_MESSAGE_MAP(CPhaseProblemDlg, CDialogEx)
@@ -224,7 +216,20 @@ void CPhaseProblemDlg::OnPaint()
 	else
 	{
 		CDialogEx::OnPaint();
-		RedrawAll();
+
+		if (SignalFlag == true)
+		{
+			Graph1(Signal, PicDc, Pic, &signal_pen, Length);
+		}
+		if (SpectrFlag == true)
+		{
+			Graph1(Spectr, PicDcSpec, PicSpec, &spectr_pen, Length);
+		}
+		if (VosstFlag == true)
+		{
+			Graph2(Signal, &signal_pen, RestoreSignal, &vosstanovl_pen, PicDc, Pic, Length);
+		}
+		UpdateData(false);
 	}
 }
 
@@ -235,199 +240,231 @@ HCURSOR CPhaseProblemDlg::OnQueryDragIcon()
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
-void CPhaseProblemDlg::RedrawAll()
+DWORD WINAPI MyProc(PVOID pv)
 {
-	float* signal = new float[Length];
-	memset(signal, 0, Length * sizeof(float));
-
-	for (int i = 0; i < Length; ++i)
-	{
-		signal[i] = function(i);
-	}
-
-	int is = -1;	// ППФ
-
-	cmplx* sp = new cmplx[Length];
-	for (int i = 0; i < Length; i++)
-	{
-		sp[i].real = signal[i];
-		sp[i].image = 0;
-	}
-
-	fourea(sp, Length, is);
-
-	float* mas_mod = new float[Length];
-	memset(mas_mod, 0, Length * sizeof(float));
-	for (int i = 0; i < Length; i++)
-	{
-		mas_mod[i] = sqrt((sp[i].real) * (sp[i].real) + (sp[i].image) * (sp[i].image));
-	}
-
-
-	Mashtab(signal, Length, &mn, &mx);
-	Mashtab(mas_mod, Length, &mnspec, &mxspec);
-
-
-	PicDc->FillSolidRect(&Pic, RGB(250, 250, 250));			//закрашиваю фон 
-	PicDc->SelectObject(&osi_pen);		//выбираем перо
-
-	//область построения
-	xmin = -Length / 14;			//минимальное значение х
-	xmax = Length;			//максимальное значение х
-	ymin = mn - 0.18 * mx;			//минимальное значение y
-	ymax = mx * 1.2;		//максимальное значение y
-
-	float window_signal_width = Pic.Width();
-	float window_signal_height = Pic.Height();
-	xp = ((window_signal_width) / (xmax - xmin));			//Коэффициенты пересчёта координат по Х
-	yp = -(window_signal_height / (ymax - ymin));			//Коэффициенты пересчёта координат по У
-
-	//создаём Ось Y
-	PicDc->MoveTo(DOTS(0, ymax));
-	PicDc->LineTo(DOTS(0, ymin));
-	//создаём Ось Х
-	PicDc->MoveTo(DOTS(xmin, 0));
-	PicDc->LineTo(DOTS(xmax, 0));
-
-	PicDc->SelectObject(&setka_pen);
-
-	//отрисовка сетки по y
-	for (float x = 0; x <= xmax; x += Length / 14)
-	{
-		if (x != 0) {
-			PicDc->MoveTo(DOTS(x, ymax));
-			PicDc->LineTo(DOTS(x, ymin));
-		}
-	}
-	//отрисовка сетки по x
-	for (float y = 0; y < ymax; y += ymax / 6)
-	{
-		if (y != 0) {
-			PicDc->MoveTo(DOTS(xmin, y));
-			PicDc->LineTo(DOTS(xmax, y));
-		}
-	}
-
-
-	//подпись точек на оси
-	CFont font;
-	font.CreateFontW(14.5, 0, 0, 0, FW_REGULAR, 0, 0, 0, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS || CLIP_LH_ANGLES, DEFAULT_QUALITY, DEFAULT_PITCH, _T("Times New Roman"));
-	PicDc->SelectObject(font);
-
-	//подпись осей
-	PicDc->TextOutW(DOTS(0.01 * Length, 0.99 * ymax), _T("A")); //Y
-	PicDc->TextOutW(DOTS(xmax - Length / 30, -ymin - 0.17 * ymax), _T("t")); //X
-
-	//по Y с шагом 5
-	for (float i = 0; i <= ymax; i += ymax / 6)
-	{
-		CString str;
-		if (i != 0)
-		{
-			str.Format(_T("%.2f"), i);
-			PicDc->TextOutW(DOTS(xmin + Length / 40, i + 0.05 * ymax), str);
-		}
-	}
-	//по X с шагом 0.5
-	for (float j = 0; j <= xmax; j += Length / 14)
-	{
-		CString str;
-		if (j != 0) {
-			str.Format(_T("%.0f"), j);
-			PicDc->TextOutW(DOTS(j - Length / 100, -ymin - 0.17 * ymax), str);
-		}
-	}
-
-
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-	PicDcSpec->FillSolidRect(&PicSpec, RGB(250, 250, 250));			//закрашиваю фон 
-	PicDcSpec->SelectObject(&osi_pen);		//выбираем перо
-
-	//область построения
-	xminspec = -Length / 14;			//минимальное значение х
-	xmaxspec = Length;			//максимальное значение х
-	yminspec = mnspec - 0.18 * mxspec;			//минимальное значение y
-	ymaxspec = mxspec * 1.2;		//максимальное значение y
-
-	float window_spectr_width = PicSpec.Width();
-	float window_spectr_height = PicSpec.Height();
-	xpspec = ((window_spectr_width) / (xmaxspec - xminspec));			//Коэффициенты пересчёта координат по Х
-	ypspec = -(window_spectr_height / (ymaxspec - yminspec));			//Коэффициенты пересчёта координат по У
-
-	//создаём Ось Y
-	PicDcSpec->MoveTo(DOTSSPEC(0, ymaxspec));
-	PicDcSpec->LineTo(DOTSSPEC(0, yminspec));
-	//создаём Ось Х
-	PicDcSpec->MoveTo(DOTSSPEC(xminspec, 0));
-	PicDcSpec->LineTo(DOTSSPEC(xmaxspec, 0));
-
-	PicDcSpec->SelectObject(&setka_pen);
-
-	//отрисовка сетки по y
-	for (float x = 0; x <= xmaxspec; x += Length / 14)
-	{
-		if (x != 0) {
-			PicDcSpec->MoveTo(DOTSSPEC(x, ymaxspec));
-			PicDcSpec->LineTo(DOTSSPEC(x, yminspec));
-		}
-	}
-	//отрисовка сетки по x
-	for (float y = 0; y < ymaxspec; y += ymaxspec / 6)
-	{
-		if (y != 0) {
-			PicDcSpec->MoveTo(DOTSSPEC(xminspec, y));
-			PicDcSpec->LineTo(DOTSSPEC(xmaxspec, y));
-		}
-	}
-
-
-	//подпись точек на оси
-	CFont font1;
-	font1.CreateFontW(14.5, 0, 0, 0, FW_REGULAR, 0, 0, 0, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS || CLIP_LH_ANGLES, DEFAULT_QUALITY, DEFAULT_PITCH, _T("Times New Roman"));
-	PicDcSpec->SelectObject(font1);
-
-	//подпись осей
-	PicDcSpec->TextOutW(DOTSSPEC(0.01 * Length, 0.99 * ymaxspec), _T("A")); //Y
-	PicDcSpec->TextOutW(DOTSSPEC(xmaxspec - Length / 30, -ymin - 0.3 * ymax), _T("f")); //X
-
-	//по Y с шагом 5
-	for (float i = 0; i <= ymaxspec; i += ymaxspec / 6)
-	{
-		CString str;
-		if (i != 0)
-		{
-			str.Format(_T("%.2f"), i);
-			PicDcSpec->TextOutW(DOTSSPEC(xminspec + Length / 40, i + 0.05 * ymaxspec), str);
-		}
-	}
-	//по X с шагом 0.5
-	for (float j = 0; j <= xmaxspec; j += Length / 14)
-	{
-		CString str;
-		if (j != 0)
-		{
-			str.Format(_T("%.2f"), j / Length);
-			PicDcSpec->TextOutW(DOTSSPEC(j - Length / 100, -yminspec - 0.17 * ymaxspec), str);
-		}
-	}
-
-	delete signal;
-	delete sp;
-	delete mas_mod;
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
+	CPhaseProblemDlg* p = (CPhaseProblemDlg*)pv;
+	p->Fienup();
+	return 0;
 }
 
-float CPhaseProblemDlg::function(int t)
+void CPhaseProblemDlg::Graph1(double* Mass, CDC* WinDc, CRect WinPic, CPen* graphpen, double AbsMax)
+{
+	// поиск максимального и минимального значения
+	Min = Mass[0];
+	Max = Mass[0];
+	for (int i = 1; i < Length; i++)
+	{
+		if (Mass[i] < Min)
+		{
+			Min = Mass[i];
+		}
+		if (Mass[i] > Max)
+		{
+			Max = Mass[i];
+		}
+	}
+	// отрисовка
+	// создание контекста устройства
+	CBitmap bmp;
+	CDC* MemDc;
+	MemDc = new CDC;
+	MemDc->CreateCompatibleDC(WinDc);
+	bmp.CreateCompatibleBitmap(WinDc, WinPic.Width(), WinPic.Height());
+	CBitmap* pBmp = (CBitmap*)MemDc->SelectObject(&bmp);
+	// заливка фона графика белым цветом
+	MemDc->FillSolidRect(WinPic, RGB(255, 255, 255));
+	// отрисовка сетки координат
+	MemDc->SelectObject(&setka_pen);
+	// вертикальные линии сетки координат
+	for (double i = WinPic.Width() / 15; i < WinPic.Width(); i += WinPic.Width() / 15)
+	{
+		MemDc->MoveTo(i, 0);
+		MemDc->LineTo(i, WinPic.Height());
+	}
+	// горизонтальные линии сетки координат
+	for (double i = WinPic.Height() / 10; i < WinPic.Height(); i += WinPic.Height() / 10)
+	{
+		MemDc->MoveTo(0, i);
+		MemDc->LineTo(WinPic.Width(), i);
+	}
+	// отрисовка осей
+	MemDc->SelectObject(&osi_pen);
+	// отрисовка оси X
+	//создаём Ось Y
+	MemDc->MoveTo(0, WinPic.Height() * 9 / 10); MemDc->LineTo(WinPic.Width(), WinPic.Height() * 9 / 10);
+	// отрисовка оси Y
+	MemDc->MoveTo(WinPic.Width() * 1 / 15, WinPic.Height()); MemDc->LineTo(WinPic.Width() * 1 / 15, 0);
+	// установка прозрачного фона текста
+	MemDc->SetBkMode(TRANSPARENT);
+	// установка шрифта
+	CFont font;
+	font.CreateFontW(14.5, 0, 0, 0, FW_REGULAR, 0, 0, 0, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS || CLIP_LH_ANGLES, DEFAULT_QUALITY, DEFAULT_PITCH, _T("Century Gothic"));
+	MemDc->SelectObject(&font);
+	// подпись оси X
+	MemDc->TextOut(WinPic.Width() * 14 / 15 + 4, WinPic.Height() * 9 / 10 + 2, CString("t"));
+	// подпись оси Y
+	MemDc->TextOut(WinPic.Width() * 1 / 15 + 10, 0, CString("A"));
+	// выбор области для рисования
+	xx0 = WinPic.Width() * 1 / 15; xxmax = WinPic.Width();
+	yy0 = WinPic.Height() / 10; yymax = WinPic.Height() * 9 / 10;
+	// отрисовка
+	MemDc->SelectObject(graphpen);
+	MemDc->MoveTo(xx0, yymax + (Mass[0] - Min) / (Max - Min) * (yy0 - yymax));
+	for (int i = 0; i < Length; i++)
+	{
+		xxi = xx0 + (xxmax - xx0) * i / (Length - 1);
+		yyi = yymax + (Mass[i] - Min) / (Max - Min) * (yy0 - yymax);
+		MemDc->LineTo(xxi, yyi);
+	}
+	/* вывод числовых значений
+	 по оси X*/
+	MemDc->SelectObject(&font);
+	for (int i = 1; i < 15; i++)
+	{
+		sprintf_s(znach, "%.1f", i * AbsMax / 15);
+		MemDc->TextOut(i * (WinPic.Width() / 15) + AbsMax * 0.035, WinPic.Height() * 9 / 10 + 2, CString(znach));
+	}
+	// по оси Y
+	for (int i = 1; i < 5; i++)
+	{
+		sprintf_s(znach, "%.2f", i * Max / 4);
+		MemDc->TextOut(AbsMax * 0.015, WinPic.Height() * (8.5 - 2 * i) / 10, CString(znach));
+	}
+	// вывод на экран
+	WinDc->BitBlt(0, 0, WinPic.Width(), WinPic.Height(), MemDc, 0, 0, SRCCOPY);
+	delete MemDc;
+}
+
+// отрисовка двух графиков
+void CPhaseProblemDlg::Graph2(double* Mass1, CPen* graph1pen, double* Mass2, CPen* graph2pen, CDC* WinDc, CRect WinPic, double AbsMax)
+{
+	// поиск максимального и минимального значения
+	Min1 = Mass1[0];
+	Max1 = Mass1[0];
+	Min2 = Mass2[0];
+	Max2 = Mass2[0];
+	for (int i = 1; i < Length; i++)
+	{
+		if (Mass1[i] < Min1)
+		{
+			Min1 = Mass1[i];
+		}
+		if (Mass1[i] > Max1)
+		{
+			Max1 = Mass1[i];
+		}
+		if (Mass2[i] < Min2)
+		{
+			Min2 = Mass2[i];
+		}
+		if (Mass2[i] > Max2)
+		{
+			Max2 = Mass2[i];
+		}
+	}
+	if (Max2 > Max1)
+	{
+		Max = Max2;
+	}
+	else
+	{
+		Max = Max1;
+	}
+	if (Min2 < Min1)
+	{
+		Min = Min2;
+	}
+	else
+	{
+		Min = Min1;
+	}
+	// отрисовка
+	// создание контекста устройства
+	CBitmap bmp;
+	CDC* MemDc;
+	MemDc = new CDC;
+	MemDc->CreateCompatibleDC(WinDc);
+	bmp.CreateCompatibleBitmap(WinDc, WinPic.Width(), WinPic.Height());
+	CBitmap* pBmp = (CBitmap*)MemDc->SelectObject(&bmp);
+	// заливка фона графика белым цветом
+	MemDc->FillSolidRect(WinPic, RGB(255, 255, 255));
+	// отрисовка сетки координат
+	MemDc->SelectObject(&setka_pen);
+	// вертикальные линии сетки координат
+	for (double i = WinPic.Width() / 15; i < WinPic.Width(); i += WinPic.Width() / 15)
+	{
+		MemDc->MoveTo(i, 0);
+		MemDc->LineTo(i, WinPic.Height());
+	}
+	// горизонтальные линии сетки координат
+	for (double i = WinPic.Height() / 10; i < WinPic.Height(); i += WinPic.Height() / 10)
+	{
+		MemDc->MoveTo(0, i);
+		MemDc->LineTo(WinPic.Width(), i);
+	}
+	// отрисовка осей
+	MemDc->SelectObject(&osi_pen);
+	// отрисовка оси X
+	MemDc->MoveTo(0, WinPic.Height() * 9 / 10); MemDc->LineTo(WinPic.Width(), WinPic.Height() * 9 / 10);
+	// отрисовка оси Y
+	MemDc->MoveTo(WinPic.Width() * 1 / 15, WinPic.Height()); MemDc->LineTo(WinPic.Width() * 1 / 15, 0);
+	// установка прозрачного фона текста
+	MemDc->SetBkMode(TRANSPARENT);
+	// установка шрифта
+	CFont font;
+	font.CreateFontW(14.5, 0, 0, 0, FW_REGULAR, 0, 0, 0, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS || CLIP_LH_ANGLES, DEFAULT_QUALITY, DEFAULT_PITCH, _T("Century Gothic"));
+	MemDc->SelectObject(&font);
+	// подпись оси X
+	MemDc->TextOut(WinPic.Width() * 14 / 15 + 4, WinPic.Height() * 9 / 10 + 2, CString("t"));
+	// подпись оси Y
+	MemDc->TextOut(WinPic.Width() * 1 / 15 + 10, 0, CString("A"));
+	// выбор области для рисования
+	xx0 = WinPic.Width() * 1 / 15; xxmax = WinPic.Width();
+	yy0 = WinPic.Height() / 10; yymax = WinPic.Height() * 9 / 10;
+	// отрисовка первого графика
+	MemDc->SelectObject(graph1pen);
+	MemDc->MoveTo(xx0, yymax + (Mass1[0] - Min) / (Max - Min) * (yy0 - yymax));
+	for (int i = 0; i < Length; i++)
+	{
+		xxi = xx0 + (xxmax - xx0) * i / (Length - 1);
+		yyi = yymax + (Mass1[i] - Min) / (Max - Min) * (yy0 - yymax);
+		MemDc->LineTo(xxi, yyi);
+	}
+	// отрисовка второго графика
+	MemDc->SelectObject(graph2pen);
+	MemDc->MoveTo(xx0, yymax + (Mass2[0] - Min) / (Max - Min) * (yy0 - yymax));
+	for (int i = 0; i < Length; i++)
+	{
+		xxi = xx0 + (xxmax - xx0) * i / (Length - 1);
+		yyi = yymax + (Mass2[i] - Min) / (Max - Min) * (yy0 - yymax);
+		MemDc->LineTo(xxi, yyi);
+	}
+	// вывод числовых значений
+	// по оси X
+	MemDc->SelectObject(&font);
+	for (int i = 1; i < 15; i++)
+	{
+		sprintf_s(znach, "%.1f", i * AbsMax / 15);
+		MemDc->TextOut(i * (WinPic.Width() / 15) + AbsMax * 0.035, WinPic.Height() * 9 / 10 + 2, CString(znach));
+	}
+	// по оси Y
+	for (int i = 1; i < 5; i++)
+	{
+		sprintf_s(znach, "%.2f", i * Max / 4);
+		MemDc->TextOut(AbsMax * 0.015, WinPic.Height() * (8.5 - 2 * i) / 10, CString(znach));
+	}
+	// вывод на экран
+	WinDc->BitBlt(0, 0, WinPic.Width(), WinPic.Height(), MemDc, 0, 0, SRCCOPY);
+	delete MemDc;
+}
+
+double CPhaseProblemDlg::function(int t)
 {
 	UpdateData(TRUE);
-	float result = 0.0;
-	float ampl[] = { e_ampl1, e_ampl2, e_ampl3, e_ampl4, e_ampl5 };
-	float disp[] = { e_disp1, e_disp2, e_disp3, e_disp4, e_disp5 };
-	float t0[] = { e_center_pos1, e_center_pos2, e_center_pos3, e_center_pos4, e_center_pos5 };
+	double result = 0.0;
+	double ampl[] = { e_ampl1, e_ampl2, e_ampl3, e_ampl4, e_ampl5 };
+	double disp[] = { e_disp1, e_disp2, e_disp3, e_disp4, e_disp5 };
+	double t0[] = { e_center_pos1, e_center_pos2, e_center_pos3, e_center_pos4, e_center_pos5 };
 	for (int i = 0; i < 5; i++)
 	{
 		result += ampl[i] * exp(-((t - t0[i]) / disp[i]) * ((t - t0[i]) / disp[i]));
@@ -435,22 +472,22 @@ float CPhaseProblemDlg::function(int t)
 	return result;
 }
 
-float CPhaseProblemDlg::Psi()		//рандомизация для шума
+double CPhaseProblemDlg::Psi()		//рандомизация для шума
 {
-	float r = 0;
-	float a = 0.;
-	float b = 2 * Pi;
+	double r = 0;
+	double a = 0.;
+	double b = 2 * Pi;
 
 	for (int i = 1; i <= 12; i++)
 	{
-		r += (float)rand() / (float)RAND_MAX * (b - a) + a;	// [0;2PI]
+		r += (double)rand() / (double)RAND_MAX * (b - a) + a;	// [0;2PI]
 	}
 	return r / 12;
 }
 
 void CPhaseProblemDlg::Reflection()
 {
-	float* Buffer = new float[Length];
+	double* Buffer = new double[Length];
 	for (int i = 0; i < Length; i++)
 	{
 		Buffer[i] = RestoreSignal[i];
@@ -468,10 +505,10 @@ void CPhaseProblemDlg::Reflection()
 
 void CPhaseProblemDlg::Shift()
 {
-	float* Buffer = new float[Length];
-	float* RestoreHelp = new float[Length];
-	float* NewMassiv = new float[Length];
-	float* NewInvMassiv = new float[Length];
+	double* Buffer = new double[Length];
+	double* RestoreHelp = new double[Length];
+	double* NewMassiv = new double[Length];
+	double* NewInvMassiv = new double[Length];
 
 	for (int i = 0; i < Length; i++)
 	{
@@ -500,7 +537,11 @@ void CPhaseProblemDlg::Shift()
 			NewMassiv[i] += sqrt((Signal[k] - RestoreHelp[k]) * (Signal[k] - RestoreHelp[k]));
 		}
 	}
-	Reflection();
+	if (check_reflect.GetCheck() == BST_CHECKED && check_shift.GetCheck() == BST_CHECKED)
+	{
+		Reflection();
+	}
+	//Reflection();
 
 	for (int i = 0; i < Length; i++)
 	{
@@ -527,10 +568,14 @@ void CPhaseProblemDlg::Shift()
 			NewInvMassiv[i] += sqrt((Signal[k] - RestoreHelp[k]) * (Signal[k] - RestoreHelp[k]));
 		}
 	}
-	Reflection();
+	if (check_reflect.GetCheck() == BST_CHECKED && check_shift.GetCheck() == BST_CHECKED)
+	{
+		Reflection();
+	}
+	//Reflection();
 
-	float mininv = NewInvMassiv[0];
-	float min = NewMassiv[0];
+	double mininv = NewInvMassiv[0];
+	double min = NewMassiv[0];
 	int minimum = 0;
 	int minimuminv = 0;
 
@@ -551,7 +596,11 @@ void CPhaseProblemDlg::Shift()
 
 	if (mininv < min)
 	{
-		Reflection();
+		if (check_reflect.GetCheck() == BST_CHECKED && check_shift.GetCheck() == BST_CHECKED)
+		{
+			Reflection();
+		}
+		//Reflection();
 
 		for (int i = 0; i < Length; i++)
 		{
@@ -589,14 +638,18 @@ void CPhaseProblemDlg::Shift()
 			}
 		}
 	}
+	delete[] Buffer;
+	delete[] RestoreHelp;
+	delete[] NewMassiv;
+	delete[] NewInvMassiv;
 }
 
 void CPhaseProblemDlg::Fienup()
 {
 	cmplx* InitialMassiv = new cmplx[Length];
-	float* RSignal = new float[Length];
+	double* RSignal = new double[Length];
 
-	float tau = accurat;
+	double tau = accurat;
 
 	int j = 0;
 	while (1)
@@ -604,7 +657,7 @@ void CPhaseProblemDlg::Fienup()
 		j++;
 		if (j == 1)
 		{
-			float* phase = new float[Length];
+			double* phase = new double[Length];
 			for (int i = 0; i < Length; i++)
 			{
 				phase[i] = Psi();
@@ -633,62 +686,48 @@ void CPhaseProblemDlg::Fienup()
 
 		fourea(InitialMassiv, Length, -1);
 
-		float* phase = new float[Length];
+		double* phase = new double[Length];
 		for (int i = 0; i < Length; i++)
 		{
 			phase[i] = atan2(InitialMassiv[i].image, InitialMassiv[i].real);
 			InitialMassiv[i].real = Spectr[i] * cos(phase[i]);
 			InitialMassiv[i].image = Spectr[i] * sin(phase[i]);
 		}
-		delete[] phase;
 
-		if (check_reflect.GetCheck() == BST_CHECKED)
+		if (check_reflect.GetCheck() == BST_CHECKED && check_shift.GetCheck() == BST_UNCHECKED)
 		{
 			Reflection();
+			Invalidate(0);
 		}
 
-		if (check_shift.GetCheck() == BST_CHECKED)
+		if (check_shift.GetCheck() == BST_CHECKED && check_reflect.GetCheck() == BST_UNCHECKED)
 		{
 			Shift();
+			Invalidate(0);
 		}
 
-		RedrawAll();
-
-		PicDc->SelectObject(&signal_pen);
-		PicDc->MoveTo(DOTS(0, Signal[0]));
-
-		for (int i = 0; i < Length; i++)
+		if (check_reflect.GetCheck() == BST_CHECKED && check_shift.GetCheck() == BST_CHECKED)
 		{
-			PicDc->LineTo(DOTS(i, Signal[i]));
+			Shift();
+			Invalidate(0);
 		}
 
-		PicDc->SelectObject(&vosstanovl_pen);
-		PicDc->MoveTo(DOTS(0, RestoreSignal[0]));
-		for (int i = 0; i < Length; i++)
+		if (check_reflect.GetCheck() == BST_UNCHECKED && check_shift.GetCheck() == BST_UNCHECKED)
 		{
-			PicDc->LineTo(DOTS(i, RestoreSignal[i]));
+			Invalidate(0);
 		}
 
-		PicDcSpec->SelectObject(&spectr_pen);
-		PicDcSpec->MoveTo(DOTSSPEC(0, Spectr[0]));
+		osh = 0;
 		for (int i = 0; i < Length; i++)
 		{
-			PicDcSpec->LineTo(DOTSSPEC(i, Spectr[i]));
-		}
-
-		float sqerror = 0;
-		for (int i = 0; i < Length; i++)
-		{
-			sqerror += sqrt((RSignal[i] - RestoreSignal[i]) * (RSignal[i] - RestoreSignal[i]));
+			osh += sqrt((RSignal[i] - RestoreSignal[i]) * (RSignal[i] - RestoreSignal[i]));
 			RSignal[i] = RestoreSignal[i];
 		}
 
-		if ((sqerror / Length) <= tau) break;
-
-		CString err = NULL;
-		err.Format(L"%.13f", sqerror / Length);
-		st_error = err;
-		UpdateData(FALSE);
+		sprintf_s(err, "%.10f", osh);
+		static_err.SetWindowTextW((CString)err);
+		if ((osh) <= tau) break;
+		delete[] phase;
 	}
 	delete[] InitialMassiv;
 }
@@ -704,7 +743,18 @@ void CPhaseProblemDlg::OnBnClickedButtonStart()
 {
 	// TODO: добавьте свой код обработчика уведомлений
 	UpdateData(TRUE);
-	RedrawAll();
+
+	SignalFlag = true;
+	SpectrFlag = true;
+
+	Signal = new double[Length];
+	Spectr = new double[Length];
+
+	for (int i = 0; i < Length; i++)
+	{
+		Signal[i] = 0;
+		Spectr[i] = 0;
+	}
 
 	float* signal = new float[Length];
 	memset(signal, 0, Length * sizeof(float));
@@ -714,16 +764,6 @@ void CPhaseProblemDlg::OnBnClickedButtonStart()
 		signal[i] = function(i);
 		Signal[i] = signal[i];
 	}
-
-	PicDc->SelectObject(&signal_pen);
-	PicDc->MoveTo(DOTS(0, signal[0]));
-
-	for (int i = 0; i < Length; ++i)
-	{
-		PicDc->LineTo(DOTS(i, signal[i]));
-	}
-
-	PicDcSpec->SelectObject(&spectr_pen);
 
 	int is = -1;	// ППФ
 
@@ -744,12 +784,8 @@ void CPhaseProblemDlg::OnBnClickedButtonStart()
 		Spectr[i] = mas_mod[i];
 	}
 
-	PicDcSpec->MoveTo(DOTSSPEC(0, mas_mod[0]));
-
-	for (int i = 0; i < Length; i++)
-	{
-		PicDcSpec->LineTo(DOTSSPEC(i, mas_mod[i]));
-	}
+	Graph1(Signal, PicDc, Pic, &signal_pen, Length);
+	Graph1(Spectr, PicDcSpec, PicSpec, &spectr_pen, Length);
 
 	delete[] signal;
 	delete[] sp;
@@ -760,12 +796,51 @@ void CPhaseProblemDlg::OnBnClickedButtonStart()
 void CPhaseProblemDlg::OnBnClickedButtonStartRecovery()
 {
 	// TODO: добавьте свой код обработчика уведомлений
-	UpdateData(TRUE);
-	Fienup();
+	SignalFlag = false;
+	SpectrFlag = false;
+	if (!bRunTh)
+	{
+		button_StartRecovery.SetWindowTextW(bPauseString);
+		if (hThread == NULL)
+		{
+			RestoreSignal = new double[Length];
+
+			for (int i = 0; i < Length; i++)
+			{
+				RestoreSignal[i] = 0;
+			}
+
+			hThread = CreateThread(NULL, 0, MyProc, this, 0, &dwThread);
+			VosstFlag = true;
+		}
+		else
+		{
+			ResumeThread(hThread);
+		}
+		bRunTh = true;
+	}
+	else
+	{
+		button_StartRecovery.SetWindowTextW(bStartString);
+		bRunTh = false;
+
+		SuspendThread(hThread);
+	}
 }
 
 
 void CPhaseProblemDlg::OnBnClickedButtonDropRecovery()
 {
 	// TODO: добавьте свой код обработчика уведомлений
+	UpdateData(TRUE);
+	TerminateThread(hThread, 0);		//убиваем поток
+	CloseHandle(hThread);
+	hThread = NULL;
+
+	button_StartRecovery.SetWindowTextW(bStartString);
+	bRunTh = false;
+
+	VosstFlag = false;
+	Graph1(Signal, PicDc, Pic, &signal_pen, Length);
+	static_err.SetWindowTextW(L"");
 }
