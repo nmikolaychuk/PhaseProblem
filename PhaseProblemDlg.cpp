@@ -124,8 +124,6 @@ void CPhaseProblemDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Text(pDX, IDC_EDIT_CENTER_POS_5, e_center_pos5);
 	DDX_Control(pDX, IDC_BUTTON_START_RECOVERY, button_StartRecovery);
 	DDX_Text(pDX, IDC_EDIT_ACCURAT, accurat);
-	DDX_Control(pDX, IDC_CHECK_REFLECT, check_reflect);
-	DDX_Control(pDX, IDC_CHECK_SHIFT, check_shift);
 	DDX_Control(pDX, IDC_STATIC_ERR, static_err);
 }
 
@@ -136,6 +134,8 @@ BEGIN_MESSAGE_MAP(CPhaseProblemDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BUTTON_START, &CPhaseProblemDlg::OnBnClickedButtonStart)
 	ON_BN_CLICKED(IDC_BUTTON_START_RECOVERY, &CPhaseProblemDlg::OnBnClickedButtonStartRecovery)
 	ON_BN_CLICKED(IDC_BUTTON_DROP_RECOVERY, &CPhaseProblemDlg::OnBnClickedButtonDropRecovery)
+	ON_BN_CLICKED(IDC_BUTTON_REFLECT, &CPhaseProblemDlg::OnBnClickedButtonReflect)
+	ON_BN_CLICKED(IDC_BUTTON_SHIFT, &CPhaseProblemDlg::OnBnClickedButtonShift)
 END_MESSAGE_MAP()
 
 
@@ -298,7 +298,7 @@ void CPhaseProblemDlg::Graph1(double* Mass, CDC* WinDc, CRect WinPic, CPen* grap
 	MemDc->SetBkMode(TRANSPARENT);
 	// установка шрифта
 	CFont font;
-	font.CreateFontW(14.5, 0, 0, 0, FW_REGULAR, 0, 0, 0, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS || CLIP_LH_ANGLES, DEFAULT_QUALITY, DEFAULT_PITCH, _T("Century Gothic"));
+	font.CreateFontW(14.5, 0, 0, 0, FW_BOLD, 0, 0, 0, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS || CLIP_LH_ANGLES, DEFAULT_QUALITY, DEFAULT_PITCH, _T("Century Gothic"));
 	MemDc->SelectObject(&font);
 	// подпись оси X
 	MemDc->TextOut(WinPic.Width() * 14 / 15 + 4, WinPic.Height() * 9 / 10 + 2, CString("t"));
@@ -322,6 +322,94 @@ void CPhaseProblemDlg::Graph1(double* Mass, CDC* WinDc, CRect WinPic, CPen* grap
 	for (int i = 1; i < 15; i++)
 	{
 		sprintf_s(znach, "%.1f", i * AbsMax / 15);
+		MemDc->TextOut(i * (WinPic.Width() / 15) + AbsMax * 0.035, WinPic.Height() * 9 / 10 + 2, CString(znach));
+	}
+	// по оси Y
+	for (int i = 1; i < 5; i++)
+	{
+		sprintf_s(znach, "%.2f", i * Max / 4);
+		MemDc->TextOut(AbsMax * 0.015, WinPic.Height() * (8.5 - 2 * i) / 10, CString(znach));
+	}
+	// вывод на экран
+	WinDc->BitBlt(0, 0, WinPic.Width(), WinPic.Height(), MemDc, 0, 0, SRCCOPY);
+	delete MemDc;
+}
+
+void CPhaseProblemDlg::GraphSpec(double* Mass, CDC* WinDc, CRect WinPic, CPen* graphpen, double AbsMax)
+{
+	// поиск максимального и минимального значения
+	Min = Mass[0];
+	Max = Mass[0];
+	for (int i = 1; i < Length; i++)
+	{
+		if (Mass[i] < Min)
+		{
+			Min = Mass[i];
+		}
+		if (Mass[i] > Max)
+		{
+			Max = Mass[i];
+		}
+	}
+	// отрисовка
+	// создание контекста устройства
+	CBitmap bmp;
+	CDC* MemDc;
+	MemDc = new CDC;
+	MemDc->CreateCompatibleDC(WinDc);
+	bmp.CreateCompatibleBitmap(WinDc, WinPic.Width(), WinPic.Height());
+	CBitmap* pBmp = (CBitmap*)MemDc->SelectObject(&bmp);
+	// заливка фона графика белым цветом
+	MemDc->FillSolidRect(WinPic, RGB(255, 255, 255));
+	// отрисовка сетки координат
+	MemDc->SelectObject(&setka_pen);
+	// вертикальные линии сетки координат
+	for (double i = WinPic.Width() / 15; i < WinPic.Width(); i += WinPic.Width() / 15)
+	{
+		MemDc->MoveTo(i, 0);
+		MemDc->LineTo(i, WinPic.Height());
+	}
+	// горизонтальные линии сетки координат
+	for (double i = WinPic.Height() / 10; i < WinPic.Height(); i += WinPic.Height() / 10)
+	{
+		MemDc->MoveTo(0, i);
+		MemDc->LineTo(WinPic.Width(), i);
+	}
+	// отрисовка осей
+	MemDc->SelectObject(&osi_pen);
+	// отрисовка оси X
+	//создаём Ось Y
+	MemDc->MoveTo(0, WinPic.Height() * 9 / 10); MemDc->LineTo(WinPic.Width(), WinPic.Height() * 9 / 10);
+	// отрисовка оси Y
+	MemDc->MoveTo(WinPic.Width() * 1 / 15, WinPic.Height()); MemDc->LineTo(WinPic.Width() * 1 / 15, 0);
+	// установка прозрачного фона текста
+	MemDc->SetBkMode(TRANSPARENT);
+	// установка шрифта
+	CFont font;
+	font.CreateFontW(14.5, 0, 0, 0, FW_BOLD, 0, 0, 0, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS || CLIP_LH_ANGLES, DEFAULT_QUALITY, DEFAULT_PITCH, _T("Century Gothic"));
+	MemDc->SelectObject(&font);
+	// подпись оси X
+	MemDc->TextOut(WinPic.Width() * 14 / 15 + 4, WinPic.Height() * 9 / 10 + 2, CString("t"));
+	// подпись оси Y
+	MemDc->TextOut(WinPic.Width() * 1 / 15 + 10, 0, CString("A"));
+	// выбор области для рисования
+	xx0 = WinPic.Width() * 1 / 15; xxmax = WinPic.Width();
+	yy0 = WinPic.Height() / 10; yymax = WinPic.Height() * 9 / 10;
+	// отрисовка
+	MemDc->SelectObject(graphpen);
+	MemDc->MoveTo(xx0, yymax + (Mass[0] - Min) / (Max - Min) * (yy0 - yymax));
+	for (int i = 0; i < Length; i++)
+	{
+		xxi = xx0 + (xxmax - xx0) * i / (Length - 1);
+		yyi = yymax + (Mass[i] - Min) / (Max - Min) * (yy0 - yymax);
+		MemDc->LineTo(xxi, yyi);
+	}
+	/* вывод числовых значений
+	 по оси X*/
+	MemDc->SelectObject(&font);
+	for (int i = 1; i < 15; i++)
+	{
+		sprintf_s(znach, "%.3f", (i / AbsMax) * AbsMax / 15);
 		MemDc->TextOut(i * (WinPic.Width() / 15) + AbsMax * 0.035, WinPic.Height() * 9 / 10 + 2, CString(znach));
 	}
 	// по оси Y
@@ -412,7 +500,7 @@ void CPhaseProblemDlg::Graph2(double* Mass1, CPen* graph1pen, double* Mass2, CPe
 	MemDc->SetBkMode(TRANSPARENT);
 	// установка шрифта
 	CFont font;
-	font.CreateFontW(14.5, 0, 0, 0, FW_REGULAR, 0, 0, 0, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS || CLIP_LH_ANGLES, DEFAULT_QUALITY, DEFAULT_PITCH, _T("Century Gothic"));
+	font.CreateFontW(14.5, 0, 0, 0, FW_BOLD, 0, 0, 0, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS || CLIP_LH_ANGLES, DEFAULT_QUALITY, DEFAULT_PITCH, _T("Century Gothic"));
 	MemDc->SelectObject(&font);
 	// подпись оси X
 	MemDc->TextOut(WinPic.Width() * 14 / 15 + 4, WinPic.Height() * 9 / 10 + 2, CString("t"));
@@ -537,11 +625,6 @@ void CPhaseProblemDlg::Shift()
 			NewMassiv[i] += sqrt((Signal[k] - RestoreHelp[k]) * (Signal[k] - RestoreHelp[k]));
 		}
 	}
-	if (check_reflect.GetCheck() == BST_CHECKED && check_shift.GetCheck() == BST_CHECKED)
-	{
-		Reflection();
-	}
-	//Reflection();
 
 	for (int i = 0; i < Length; i++)
 	{
@@ -568,11 +651,6 @@ void CPhaseProblemDlg::Shift()
 			NewInvMassiv[i] += sqrt((Signal[k] - RestoreHelp[k]) * (Signal[k] - RestoreHelp[k]));
 		}
 	}
-	if (check_reflect.GetCheck() == BST_CHECKED && check_shift.GetCheck() == BST_CHECKED)
-	{
-		Reflection();
-	}
-	//Reflection();
 
 	double mininv = NewInvMassiv[0];
 	double min = NewMassiv[0];
@@ -596,11 +674,6 @@ void CPhaseProblemDlg::Shift()
 
 	if (mininv < min)
 	{
-		if (check_reflect.GetCheck() == BST_CHECKED && check_shift.GetCheck() == BST_CHECKED)
-		{
-			Reflection();
-		}
-		//Reflection();
 
 		for (int i = 0; i < Length; i++)
 		{
@@ -694,28 +767,7 @@ void CPhaseProblemDlg::Fienup()
 			InitialMassiv[i].image = Spectr[i] * sin(phase[i]);
 		}
 
-		if (check_reflect.GetCheck() == BST_CHECKED && check_shift.GetCheck() == BST_UNCHECKED)
-		{
-			Reflection();
-			Invalidate(0);
-		}
-
-		if (check_shift.GetCheck() == BST_CHECKED && check_reflect.GetCheck() == BST_UNCHECKED)
-		{
-			Shift();
-			Invalidate(0);
-		}
-
-		if (check_reflect.GetCheck() == BST_CHECKED && check_shift.GetCheck() == BST_CHECKED)
-		{
-			Shift();
-			Invalidate(0);
-		}
-
-		if (check_reflect.GetCheck() == BST_UNCHECKED && check_shift.GetCheck() == BST_UNCHECKED)
-		{
-			Invalidate(0);
-		}
+		Invalidate(0);
 
 		osh = 0;
 		for (int i = 0; i < Length; i++)
@@ -785,7 +837,7 @@ void CPhaseProblemDlg::OnBnClickedButtonStart()
 	}
 
 	Graph1(Signal, PicDc, Pic, &signal_pen, Length);
-	Graph1(Spectr, PicDcSpec, PicSpec, &spectr_pen, Length);
+	GraphSpec(Spectr, PicDcSpec, PicSpec, &spectr_pen, Length);
 
 	delete[] signal;
 	delete[] sp;
@@ -843,4 +895,24 @@ void CPhaseProblemDlg::OnBnClickedButtonDropRecovery()
 	VosstFlag = false;
 	Graph1(Signal, PicDc, Pic, &signal_pen, Length);
 	static_err.SetWindowTextW(L"");
+}
+
+
+void CPhaseProblemDlg::OnBnClickedButtonReflect()
+{
+	// TODO: добавьте свой код обработчика уведомлений
+	UpdateData(TRUE);
+	Reflection();
+	
+	Graph2(Signal, &signal_pen, RestoreSignal, &vosstanovl_pen, PicDc, Pic, Length);
+}
+
+
+void CPhaseProblemDlg::OnBnClickedButtonShift()
+{
+	// TODO: добавьте свой код обработчика уведомлений
+	UpdateData(TRUE);
+	Shift();
+
+	Graph2(Signal, &signal_pen, RestoreSignal, &vosstanovl_pen, PicDc, Pic, Length);
 }

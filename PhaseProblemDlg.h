@@ -37,6 +37,7 @@ public:
 	void Reflection();
 	void Shift();
 	void Graph1(double*, CDC*, CRect, CPen*, double);
+	void GraphSpec(double*, CDC*, CRect, CPen*, double);
 	void Graph2(double*, CPen*, double*, CPen*, CDC*, CRect, double);
 
 	DWORD dwThread;
@@ -91,8 +92,6 @@ public:
 	char err[100];
 	char znach[1000];
 
-	CButton check_reflect;
-	CButton check_shift;
 	CStatic static_err;
 	double accurat;
 
@@ -105,4 +104,6 @@ public:
 	//========================================================
 	void CPhaseProblemDlg::fourea(struct cmplx* data, int n, int is);
 	afx_msg void OnBnClickedButtonDropRecovery();
+	afx_msg void OnBnClickedButtonReflect();
+	afx_msg void OnBnClickedButtonShift();
 };
